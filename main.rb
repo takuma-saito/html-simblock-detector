@@ -18,7 +18,8 @@ def inner_product(x, y)
 end
 
 def normalize(vec)
-  sum = Math.sqrt([vec.values, vec.values].map {|val| val.reduce(&:*)}.reduce(&:+))
+  sum = Math.sqrt(
+    [vec.values, vec.values].map {|val| val.reduce(&:*)}.reduce(&:+))
   vec.map do |k, v|
     [k, v.to_f / sum.to_f]
   end.to_h
@@ -37,7 +38,7 @@ def val_elem(doc)
   res = {}
   res[doc.name] = 1
   doc.attributes.each do |k, v|
-    if k == 'class'
+    if k == 'class' or k == 'id'
       v.value.split(" ").each do |n|
         res["#{doc.name}_class_#{n}"] = 1
       end
