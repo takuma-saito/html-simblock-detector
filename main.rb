@@ -40,7 +40,7 @@ def val_elem(doc)
   doc.attributes.each do |k, v|
     if k == 'class' or k == 'id'
       v.value.split(" ").each do |n|
-        res["#{doc.name}_class_#{n}"] = 1
+        res["#{doc.name}_#{k}_#{n}"] = 1
       end
     end
   end
