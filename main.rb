@@ -17,13 +17,20 @@ def inner_product(x, y)
   end.reduce(&:+)
 end
 
-def calc(arr)
-  return 0.0 if arr.empty?
-  len = arr.map {|x|
-    [x.values, x.values].transpose.map{|y| y.reduce(&:*)}.reduce(&:+)
-  }.reduce(&:+).to_f
-  val = arr.map { |x| arr.map {|y| inner_product(x, y)}.reduce(&:+) }.reduce(&:+)
-  (val.to_f / len) * arr.size
+def normalize(vec)
+  sum = Math.sqrt([vec.values, vec.values].map {|val| val.reduce(&:*)}.reduce(&:+))
+  vec.map do |k, v|
+    [k, v.to_f / sum.to_f]
+  end.to_h
+end
+
+def calc(vecs)
+  return 0.0 if vecs.size <= 1
+  vecs_norm = vecs.map {|vec| normalize(vec)}
+  val = vecs_norm.map.with_index { |x, i|
+    vecs_norm.map.with_index {|y, j|
+      i != j ? inner_product(x, y) : 0}.reduce(&:+) }.reduce(&:+)
+  val.to_f / vecs_norm.size
 end
 
 def val_elem(doc)
@@ -75,7 +82,7 @@ def dfs(doc)
     dfs(elem)
   end + [val(doc)]
   arr = arr.reject(&:nil?)
-  if calc(arr) > 30.0
+  if calc(arr) > 5.0
     puts doc.to_html
     puts calc(arr)
     p arr
