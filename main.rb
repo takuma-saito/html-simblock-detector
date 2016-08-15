@@ -1,6 +1,8 @@
 require 'nokogiri'
 require "open-uri"
 require 'kconv'
+require 'pp'
+require 'ap'
 
 def remove_elem(doc)
   doc.xpath('//comment()').remove
@@ -19,7 +21,7 @@ end
 
 def normalize(vec)
   sum = Math.sqrt(
-    [vec.values, vec.values].map {|val| val.reduce(&:*)}.reduce(&:+))
+    [vec.values, vec.values].transpose.map {|val| val.reduce(&:*)}.reduce(&:+))
   vec.map do |k, v|
     [k, v.to_f / sum.to_f]
   end.to_h
@@ -53,6 +55,10 @@ def val(doc)
     nil # skip
   when Nokogiri::XML::NodeSet
     nil # skip
+  when Nokogiri::XML::DTD
+    nil # skip
+  when Nokogiri::HTML::Document
+    nil # skip
   when Nokogiri::XML::Element
     return nil if doc.name == "br"
     val_elem(doc)
@@ -61,36 +67,53 @@ def val(doc)
   end
 end
 
-def merge!(arr, x)
+def merge!(vecs, x)
   x.each do |k, v|
-    if arr.key? k
-      arr[k] += v
+    if vecs.key? k
+      vecs[k] += v
     else
-      arr[k] = v
+      vecs[k] = v
     end
   end
-  arr
+  vecs
 end
 
-def merge_hash(arr)
-  arr.reduce {|accum, x| merge!(accum, x) unless x.nil?}
+def merge_hash(vecs)
+  vecs.reduce {|accum, x| merge!(accum, x) unless x.nil?}
 end
 
-def dfs(doc)
-  children = doc&.children
-  return val(doc) if children.empty?
-  arr = children.map do |elem|
-    dfs(elem)
-  end + [val(doc)]
-  arr = arr.reject(&:nil?)
-  if calc(arr) > 5.0
-    puts doc.to_html
-    puts calc(arr)
-    p arr
-    puts "=========="
+def debug(&block)
+  block.call unless $debug.nil?
+end
+
+def sim_blocks(doc)
+  def dfs(doc, blocks)
+    children = doc&.children
+    return val(doc) if children.empty?
+    vecs = children.map do |elem|
+      dfs(elem, blocks)
+    end
+    vecs = vecs.reject(&:nil?)
+    cal = calc(vecs)
+    debug do
+      puts doc.to_html
+      puts cal 
+      ap vecs
+      puts "=========="
+    end
+    blocks << {calc: cal, path: doc.path, html: doc.to_html}
+    hash = merge_hash(val(doc).nil? ? vecs : [val(doc)] + vecs)
+    return hash
   end
-  hash = merge_hash(arr)
-  return hash
+  blocks = []
+  dfs(doc, blocks)
+  blocks.sort_by {|block| block[:calc]}.reverse.slice(0, 9).reverse
+end
+
+def get_doc(html)
+  doc = Nokogiri::HTML html
+  remove_elem(doc)
+  doc
 end
 
 read_from_url = -> (url) {
@@ -99,11 +122,5 @@ read_from_url = -> (url) {
 read_from_file = -> (file) {
   File.open(file).read  
 }
-
-html = read_from_url.(ARGV[0])
-
-doc = Nokogiri::HTML html
-remove_elem(doc)
-$res = []
-dfs(doc.xpath('//body'))
+ap sim_blocks(get_doc(read_from_url.(ARGV[0])))
 
