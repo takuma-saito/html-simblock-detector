@@ -166,7 +166,7 @@ def get_doc(html)
   doc
 end
 
-def reject_by_sim_ratio(blocks, ratio = 10.0)
+def reject_by_sim_ratio(blocks, ratio = 20.0)
   blocks.reject {|block| (block[:avg_sim] / block[:avg_size]) > ratio}
 end
 
