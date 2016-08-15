@@ -15,6 +15,7 @@ def remove_elem(doc)
    'button',
    'form',
    'input',
+   'path',
    'option'].each do |elem|
     doc.xpath("//#{elem}").remove
   end
@@ -166,24 +167,26 @@ def get_doc(html)
   doc
 end
 
-def reject_by_sim_ratio(blocks, ratio = 20.0)
-  blocks.reject {|block| (block[:avg_sim] / block[:avg_size]) > ratio}
+def reject_by_sim_ratio(blocks, ratio = 5.0)
+  blocks
+    .reject {|block| (block[:avg_sim] / block[:avg_size]) > ratio}
+    .reject {|block| block[:avg_size] < 5.0}
 end
 
 def get_paginator(blocks)  
   block = sort_by_count_numeric(blocks, 1)[0]
-  (((block[:count_numeric] / block[:avg_size]) < 2.0) or (block[:avg_size] > 15.0)) ? nil : block[:doc]
+  (((block[:count_numeric] / block[:avg_size]) < 1.0) or (block[:avg_size] > 15.0)) ? nil : block
 end
 
 def get_main_items(blocks)
-  sort_by_score(reject_by_sim_ratio(blocks), 1)[0][:doc]
+  sort_by_score(reject_by_sim_ratio(blocks), 1)[0]
 end
 
 UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36"
 
-DELTA = 0.3
-AVG_SIZE = 90
+DELTA = 0.1
+AVG_SIZE = 60
 
 read_from_url = -> (url) {
   open(url, "User-Agent" => UA).read.toutf8
@@ -197,5 +200,5 @@ blocks = sim_blocks(get_doc(read_from_url.(ARGV[0])))
 main_items = get_main_items(blocks)
 paginator  = get_paginator(blocks)
 ap main_items
-ap paginator.to_html unless paginator.nil?
-#ap sort_by_score(blocks, 10)
+ap paginator[:doc].to_html unless paginator.nil?
+# ap sort_by_score(blocks, 10)
