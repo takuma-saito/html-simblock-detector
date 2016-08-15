@@ -5,7 +5,17 @@ require 'pp'
 require 'ap'
 
 def remove_elem(doc)
-  ['comment()', 'script', 'noscript', 'style', 'select', 'meta', 'link', 'button', 'form'].each do |elem|
+  ['comment()',
+   'script',
+   'noscript',
+   'style',
+   'select',
+   'meta',
+   'link',
+   'button',
+   'form',
+   'input',
+   'option'].each do |elem|
     doc.xpath("//#{elem}").remove
   end
 end
@@ -62,11 +72,14 @@ end
 def val(doc)
   case doc
   when Nokogiri::XML::Text
-    if doc.parent.name == "a" and doc.content.strip.match /\A[-+]?[0-9]*\.?[0-9]+\Z/
-      {type_numeric: 1}
+    if doc.content.strip.match /\A[-+]?[0-9]*\.?[0-9]+\Z/
+      num = doc.parent.name == "a" ? 8 : 1
+      {type_numeric: num}
     else
       nil
     end
+  when Nokogiri::XML::ProcessingInstruction
+    nil
   when Nokogiri::XML::NodeSet
     nil # skip
   when Nokogiri::XML::DTD
@@ -104,10 +117,9 @@ def gamma_basic(x, k, theta)
   ((x ** (k - 1)) * Math.exp(- (x / theta))) / ((1...k).to_a.reduce(&:*) * (theta ** k))
 end
 
-DELTA = 0.15
-
 def gamma_log(x)
-  Math.log(gamma_basic(x, 10, 4.0)) * DELTA
+  k = (AVG_SIZE / 4.0).to_i
+  Math.log(gamma_basic(x, k, 4.0)) * DELTA
 end
 
 def sim_blocks(doc)
@@ -120,8 +132,9 @@ def sim_blocks(doc)
     vecs = vecs.reject(&:nil?)
     avg_size = calc_avg_size(vecs)
     avg_sim = calc_avg_sim(vecs)
+    path = doc.kind_of?(Nokogiri::XML::NodeSet) ? '/' : doc.path
     blocks << {
-      path: doc.path,
+      path: path,
       score: avg_sim + gamma_log(avg_size),
       avg_size: avg_size,
       avg_sim: avg_sim,
@@ -153,13 +166,24 @@ def get_doc(html)
   doc
 end
 
-def get_main_blocks_and_paginator(html)
-  blocks = sim_blocks(get_doc(html))
-  return sort_by_score(blocks, 1)[0][:doc], sort_by_count_numeric(blocks, 1)[0][:doc]
+def reject_by_sim_ratio(blocks, ratio = 10.0)
+  blocks.reject {|block| (block[:avg_sim] / block[:avg_size]) > ratio}
+end
+
+def get_paginator(blocks)  
+  block = sort_by_count_numeric(blocks, 1)[0]
+  (((block[:count_numeric] / block[:avg_size]) < 2.0) or (block[:avg_size] > 15.0)) ? nil : block[:doc]
+end
+
+def get_main_items(blocks)
+  sort_by_score(reject_by_sim_ratio(blocks), 1)[0][:doc]
 end
 
 UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36"
+
+DELTA = 0.3
+AVG_SIZE = 90
 
 read_from_url = -> (url) {
   open(url, "User-Agent" => UA).read.toutf8
@@ -168,9 +192,10 @@ read_from_file = -> (file) {
   File.open(file).read.toutf8
 }
 
-html = read_from_url.(ARGV[0])
+blocks = sim_blocks(get_doc(read_from_url.(ARGV[0])))
 
-main_blocks, paginator = get_main_blocks_and_paginator(html)
-ap main_blocks
-ap paginator
-# ap sort_by_score(sim_blocks(get_doc(html)), 9)
+main_items = get_main_items(blocks)
+paginator  = get_paginator(blocks)
+ap main_items
+ap paginator.to_html unless paginator.nil?
+#ap sort_by_score(blocks, 10)
