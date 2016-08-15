@@ -28,12 +28,13 @@ def normalize(vec)
 end
 
 def calc(vecs)
-  return 0.0 if vecs.size <= 1
+  return 0.0, 0.0 if vecs.size <= 1
+  avg_size = vecs.map {|vec| vec.values.reduce(&:+)}.reduce(&:+).to_f / vecs.size.to_f
   vecs_norm = vecs.map {|vec| normalize(vec)}
   val = vecs_norm.map.with_index { |x, i|
     vecs_norm.map.with_index {|y, j|
       i != j ? inner_product(x, y) : 0}.reduce(&:+) }.reduce(&:+)
-  val.to_f / vecs_norm.size
+  return avg_size, (val.to_f / vecs_norm.size)
 end
 
 def val_elem(doc)
@@ -86,6 +87,16 @@ def debug(&block)
   block.call unless $debug.nil?
 end
 
+def gamma_basic(x, k, theta)
+  ((x ** (k - 1)) * Math.exp(- (x / theta))) / ((1...k).to_a.reduce(&:*) * (theta ** k))
+end
+
+DELTA = 0.15
+
+def gamma_log(x)
+  Math.log(gamma_basic(x, 10, 4.0)) * DELTA
+end
+
 def sim_blocks(doc)
   def dfs(doc, blocks)
     children = doc&.children
@@ -94,20 +105,25 @@ def sim_blocks(doc)
       dfs(elem, blocks)
     end
     vecs = vecs.reject(&:nil?)
-    cal = calc(vecs)
+    avg_size, cal = calc(vecs)
     debug do
       puts doc.to_html
       puts cal 
       ap vecs
       puts "=========="
     end
-    blocks << {calc: cal, path: doc.path, html: doc.to_html}
+    blocks << {
+      path: doc.path,
+      score: cal + gamma_log(avg_size),
+      avg_size: avg_size,
+      calc: cal,
+      html: doc.to_html}
     hash = merge_hash(val(doc).nil? ? vecs : [val(doc)] + vecs)
     return hash
   end
   blocks = []
   dfs(doc, blocks)
-  blocks.sort_by {|block| block[:calc]}.reverse.slice(0, 9).reverse
+  blocks.sort_by {|block| block[:score]}.reverse.slice(0, 9).reverse
 end
 
 def get_doc(html)
