@@ -5,8 +5,9 @@ require 'pp'
 require 'ap'
 
 def remove_elem(doc)
-  doc.xpath('//comment()').remove
-  doc.xpath('//script').remove
+  ['comment()', 'script', 'noscript', 'style', 'select', 'meta', 'link', 'button', 'form'].each do |elem|
+    doc.xpath("//#{elem}").remove
+  end
 end
 
 def get_xpath(doc)
@@ -61,7 +62,7 @@ end
 def val(doc)
   case doc
   when Nokogiri::XML::Text
-    if doc.content.match /\A[-+]?[0-9]*\.?[0-9]+\Z/
+    if doc.parent.name == "a" and doc.content.strip.match /\A[-+]?[0-9]*\.?[0-9]+\Z/
       {type_numeric: 1}
     else
       nil
@@ -125,7 +126,7 @@ def sim_blocks(doc)
       avg_size: avg_size,
       avg_sim: avg_sim,
       count_numeric: calc_count_numeric(vecs),
-      html: doc.to_html}
+      doc: doc}
     hash = merge_hash(val(doc).nil? ? vecs : [val(doc)] + vecs)
     return hash
   end
@@ -152,12 +153,24 @@ def get_doc(html)
   doc
 end
 
+def get_main_blocks_and_paginator(html)
+  blocks = sim_blocks(get_doc(html))
+  return sort_by_score(blocks, 1)[0][:doc], sort_by_count_numeric(blocks, 1)[0][:doc]
+end
+
+UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36"
+
 read_from_url = -> (url) {
-  open(url).read.toutf8
+  open(url, "User-Agent" => UA).read.toutf8
 }
 read_from_file = -> (file) {
   File.open(file).read.toutf8
 }
-# ap sort_by_score(sim_blocks(get_doc(read_from_url.(ARGV[0]))), 20)
-ap sort_by_count_numeric(sim_blocks(get_doc(read_from_url.(ARGV[0]))), 20)
 
+html = read_from_url.(ARGV[0])
+
+main_blocks, paginator = get_main_blocks_and_paginator(html)
+ap main_blocks
+ap paginator
+# ap sort_by_score(sim_blocks(get_doc(html)), 9)
