@@ -1,7 +1,4 @@
-## sim block
-SimBlock is the library to get similar html blocks.
-
-### how to use
+## how to use
 
 ```ruby
 $ bundle install
