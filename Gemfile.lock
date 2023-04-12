@@ -2,18 +2,18 @@ GEM
   remote: https://rubygems.org/
   specs:
     awesome_print (1.7.0)
-    mini_portile2 (2.8.0)
-    nokogiri (1.13.9)
+    mini_portile2 (2.8.1)
+    nokogiri (1.14.3)
       mini_portile2 (~> 2.8.0)
       racc (~> 1.4)
-    racc (1.6.0)
+    racc (1.6.2)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
   awesome_print
-  nokogiri (= 1.13.9)
+  nokogiri (= 1.14.3)
 
 BUNDLED WITH
    1.12.5
